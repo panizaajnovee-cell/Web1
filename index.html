@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Web-Based Smart University Management System</title>
+
+<style>
+/* BODY & HEADER */
+body{margin:0;font-family:Arial,sans-serif;background:#eef1f6;}
+header{
+  background: linear-gradient(90deg,#2980b9,#6dd5fa);
+  color:white;
+  padding:20px 30px;
+  font-size:1.5rem;
+  font-weight:bold;
+  text-shadow:2px 2px 4px rgba(0,0,0,0.3);
+  border-bottom:4px solid #1c5980;
+  border-radius:0 0 15px 15px;
+  box-shadow:0 4px 10px rgba(0,0,0,0.2);
+  display:flex; justify-content:center; align-items:center;
+}
+
+/* CONTAINER & SIDEBAR */
+.container{display:flex;}
+.sidebar{
+  width:220px;
+  background: linear-gradient(180deg,#1c3c72,#2a5298);
+  color:white;
+  min-height:100vh;
+  padding:20px;
+  border-radius:0 15px 15px 0;
+  box-shadow:3px 0 10px rgba(0,0,0,0.2);
+  display:flex; flex-direction:column;
+}
+.sidebar button{
+  width:100%;
+  padding:12px;
+  margin-bottom:12px;
+  border:none;
+  border-radius:8px;
+  cursor:pointer;
+  font-weight:bold;
+  color:white;
+  background: linear-gradient(90deg,#2980b9,#6dd5fa);
+  box-shadow:0 2px 6px rgba(0,0,0,0.2);
+  transition: all 0.3s ease;
+}
+.sidebar button:hover{
+  background: linear-gradient(90deg,#6dd5fa,#2980b9);
+  transform:scale(1.05);
+  box-shadow:0 4px 12px rgba(0,0,0,0.3);
+}
+
+/* MAIN & CARDS */
+.main{flex:1;padding:20px;}
+.card{
+  background:white;
+  padding:20px;
+  margin-bottom:20px;
+  border-radius:15px;
+  box-shadow:0 6px 15px rgba(0,0,0,0.15);
+  transition: all 0.3s ease;
+}
+.card:hover{transform:translateY(-3px);box-shadow:0 10px 20px rgba(0,0,0,0.2);}
+.card button{
+  padding:8px 14px;
+  border:none;
+  border-radius:8px;
+  cursor:pointer;
+  background: linear-gradient(90deg,#2980b9,#6dd5fa);
+  color:white;
+  font-weight:bold;
+  margin-top:10px;
+  transition:0.3s;
+}
+.card button:hover{
+  background: linear-gradient(90deg,#6dd5fa,#2980b9);
+  transform: scale(1.05);
+}
+
+/* HIDDEN */
+.hidden{display:none;}
+
+/* COUNTDOWN & GRADES */
+.countdown{font-weight:bold;padding:3px 6px;border-radius:5px;color:white;}
+.countdown.green{background:#27ae60;}
+.countdown.yellow{background:#f1c40f;}
+.countdown.red{background:#c0392b;}
+
+.grade{font-weight:bold;padding:2px 6px;border-radius:5px;color:white;}
+.grade.pass{background:#27ae60;}
+.grade.warn{background:#f39c12;}
+.grade.fail{background:#c0392b;}
+
+table{width:100%;border-collapse:collapse;}
+th,td{border:1px solid #ccc;padding:8px;text-align:left;}
+th{background:#ecf0f1;}
+</style>
+
+</head>
+<body>
+
+<header>🎓 Web-Based Smart University Management System</header>
+
+<div class="container">
+
+<div class="sidebar">
+<div id="userBox">Select Mode</div>
+<button onclick="showPage('dashboard')">Dashboard</button>
+<button onclick="showPage('assignments')">Assignments</button>
+<button onclick="showPage('submissions')">Submissions</button>
+<button onclick="showPage('leaderboard')">Leaderboard</button>
+</div>
+
+<div class="main">
+<div id="dashboard" class="card">
+<h2>Dashboard</h2>
+<input id="nameInput" placeholder="Enter your name">
+<button onclick="setRole('student')">Student Mode</button>
+<button onclick="setRole('teacher')">Teacher Mode</button>
+<div id="dashInfo"></div>
+<canvas id="chart" width="400" height="150"></canvas>
+</div>
+
+<div id="assignments" class="card hidden"><h2>Assignments</h2><div id="assignmentBox"></div></div>
+<div id="submissions" class="card hidden">
+<h2>Submissions</h2>
+<input id="searchBox" placeholder="Search student..." onkeyup="searchStudent()">
+<div id="submissionBox"></div>
+</div>
+<div id="leaderboard" class="card hidden"><h2>Leaderboard</h2><div id="board"></div></div>
+</div>
+</div>
+
+<audio id="alarm"><source src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"></audio>
+
+<script>
+// GLOBAL VARIABLES
+let role="", currentUser="";
+let assignments=JSON.parse(localStorage.getItem("assignments"))||[];
+let submissions=JSON.parse(localStorage.getItem("submissions"))||[];
+
+// SHOW PAGE
+function showPage(p){
+['dashboard','assignments','submissions','leaderboard'].forEach(x=>document.getElementById(x).classList.add('hidden'));
+document.getElementById(p).classList.remove('hidden');
+}
+
+// SET ROLE
+function setRole(r){
+role=r;
+currentUser=document.getElementById("nameInput").value||"Guest";
+document.getElementById("userBox").innerHTML=`<b>${currentUser}</b><br>${role}`;
+loadDashboard(); loadAssignments(); loadSubmissions(); loadLeaderboard();
+}
+
+// DASHBOARD
+function loadDashboard(){
+let d=document.getElementById("dashInfo");
+if(role=="student"){
+let my=submissions.filter(s=>s.student==currentUser);
+d.innerHTML=`Assignments:${assignments.length}<br>Submitted:${my.length}`;
+drawChart(my);
+}else{
+let students=[...new Set(submissions.map(s=>s.student))];
+d.innerHTML=`Students:${students.length}<br>Total submissions:${submissions.length}`;
+}
+}
+
+// ASSIGNMENTS
+function loadAssignments(){
+let box=document.getElementById("assignmentBox"); box.innerHTML="";
+if(role=="teacher"){
+box.innerHTML=`
+<input id="title" placeholder="Title">
+<textarea id="desc" placeholder="Instructions"></textarea>
+<input type="datetime-local" id="deadline">
+<button onclick="createAssignment()">Create Assignment</button><hr>`;
+assignments.forEach((a,i)=>{box.innerHTML+=`<div class="card"><b>${a.title}</b><br>${a.desc}<br>Deadline: ${getCountdown(a.deadline)}<br><button onclick="deleteAssignment(${i})">Delete Assignment</button></div>`});
+}else{
+assignments.forEach((a,i)=>{
+box.innerHTML+=`<div class="card"><b>${a.title}</b><br>${a.desc}<br>Deadline: ${getCountdown(a.deadline)}<textarea id="ans${i}" placeholder="Answer"></textarea><input type="file" id="file${i}"><button onclick="submit(${i})">Submit</button></div>`;
+});
+}
+}
+
+// CREATE & DELETE ASSIGNMENT
+function createAssignment(){
+let title=document.getElementById("title").value;
+let desc=document.getElementById("desc").value;
+let deadline=document.getElementById("deadline").value;
+if(!title) return alert("Enter title");
+assignments.push({title,desc,deadline});
+localStorage.setItem("assignments",JSON.stringify(assignments));
+loadAssignments();
+}
+function deleteAssignment(i){
+let title=assignments[i].title;
+assignments.splice(i,1);
+submissions=submissions.filter(s=>s.assignment!==title);
+localStorage.setItem("assignments",JSON.stringify(assignments));
+localStorage.setItem("submissions",JSON.stringify(submissions));
+loadAssignments(); loadSubmissions();
+}
+
+// DUPLICATE DETECTION
+function similarity(a,b){a=a.toLowerCase().split(" "); b=b.toLowerCase().split(" "); let match=0; a.forEach(w=>{if(b.includes(w)) match++}); return match/Math.max(a.length,b.length);}
+function submit(i){
+let ans=document.getElementById("ans"+i).value; if(!ans) return alert("Write answer");
+let similar=submissions.find(s=>s.assignment==assignments[i].title && similarity(s.answer,ans)>0.8);
+if(similar){document.getElementById("alarm").play(); alert("Duplicate or copied answer detected"); return;}
+let file=document.getElementById("file"+i).files[0];
+submissions.push({student:currentUser,assignment:assignments[i].title,answer:ans,file:file?file.name:"",grade:""});
+localStorage.setItem("submissions",JSON.stringify(submissions));
+loadSubmissions();
+}
+
+// SUBMISSIONS
+function loadSubmissions(){
+let box=document.getElementById("submissionBox"); box.innerHTML="";
+if(role=="student"){
+let my=submissions.filter(s=>s.student==currentUser);
+my.forEach((s,i)=>{box.innerHTML+=`<div class="card"><b>${s.assignment}</b><br>Answer:${s.answer}<br>File:${s.file}<br>Grade:<span class="grade ${gradeClassColor(s.grade)}">${s.grade||"Not graded"}</span><br><button onclick="deleteSubmission(${i})">Delete</button></div>`});
+}else{
+box.innerHTML="<table><tr><th>Student</th><th>Assignment</th><th>Answer</th><th>File</th><th>Grade</th><th>Action</th></tr>";
+submissions.forEach((s,i)=>{box.innerHTML+=`<tr><td>${s.student}</td><td>${s.assignment}</td><td>${s.answer}</td><td>${s.file}</td><td><span class="grade ${gradeClassColor(s.grade)}">${s.grade||""}</span></td><td><input id="g${i}" style="width:60px"><button onclick="grade(${i})">Set</button><button onclick="deleteSubmission(${i})">Delete</button></td></tr>`});
+box.innerHTML+="</table>";
+}
+}
+
+function deleteSubmission(i){submissions.splice(i,1); localStorage.setItem("submissions",JSON.stringify(submissions)); loadSubmissions();}
+
+// GRADE
+function grade(i){let g=document.getElementById("g"+i).value; submissions[i].grade=g; localStorage.setItem("submissions",JSON.stringify(submissions)); loadLeaderboard(); loadSubmissions();}
+function gradeClassColor(grade){if(!grade) return "warn"; grade=Number(grade); if(grade>=75) return "pass"; if(grade<50) return "fail"; return "warn";}
+
+// LEADERBOARD
+function loadLeaderboard(){let board={}; submissions.forEach(s=>{if(!s.grade) return; if(!board[s.student]) board[s.student]=0; board[s.student]+=Number(s.grade)}); let sorted=Object.entries(board).sort((a,b)=>b[1]-a[1]); let html=""; sorted.forEach((s,i)=>{html+=`${i+1}. ${s[0]} — ${s[1]} points<br>`}); document.getElementById("board").innerHTML=html;}
+
+// SEARCH
+function searchStudent(){let q=document.getElementById("searchBox").value.toLowerCase(); let rows=document.querySelectorAll("table tr"); rows.forEach((r,i)=>{if(i==0) return; let name=r.children[0].innerText.toLowerCase(); r.style.display=name.includes(q)?"":"none"})}
+
+// COUNTDOWN
+function getCountdown(d){if(!d) return `<span class="countdown red">No deadline</span>`; let diff=new Date(d)-new Date(); if(diff<=0) return `<span class="countdown red">Deadline passed</span>`; let h=Math.floor(diff/3600000); let m=Math.floor((diff%3600000)/60000); let cls=h<24?"yellow":"green"; return `<span class="countdown ${cls}">${h}h ${m}m</span>`}
+
+// CHART
+function drawChart(data){let c=document.getElementById("chart"); let ctx=c.getContext("2d"); ctx.clearRect(0,0,400,150); data.forEach((s,i)=>{let g=Number(s.grade)||0; ctx.fillStyle="#2980b9"; ctx.fillRect(i*40+10,150-g*2,20,g*2)})}
+
+</script>
+
+</body>
+</html>
